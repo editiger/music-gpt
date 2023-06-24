@@ -15,7 +15,7 @@ from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
-parser.add_argument("--lora_path", type=str, default="./lora-Vicuna/checkpoint-final")
+parser.add_argument("--lora_path", type=str, default="./guitarGPT/checkpoint-final")
 parser.add_argument("--use_local", type=int, default=1)
 args = parser.parse_args()
 
@@ -166,22 +166,19 @@ demo = gr.Interface(
         ),
         "state",
         gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature"),
-        gr.components.Slider(minimum=0, maximum=1, value=0.9, label="Top p"),
-        gr.components.Slider(minimum=0, maximum=100, step=1, value=60, label="Top k"),
+        gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
+        gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k"),
         gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams"),
         gr.components.Slider(
+            minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"
+        ),
+        gr.components.Slider(
             minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"
-        ),
-        gr.components.Slider(
-            minimum=0.1, maximum=10.0, step=0.1, value=2.0, label="Repetition Penalty"
-        ),
-        gr.components.Slider(
-            minimum=0, maximum=2000, step=1, value=256, label="max memory"
         ),
     ],
     outputs=[chatbot, "state"],
     allow_flagging="auto",
-    title="Chinese-Vicuna 中文小羊驼",
-    description="中文小羊驼由各种高质量的开源instruction数据集，结合Alpaca-lora的代码训练而来，模型基于开源的llama7B，主要贡献是对应的lora模型。由于代码训练资源要求较小，希望为llama中文lora社区做一份贡献。",
+    title="guitarGPT",
+    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y se usó la herramienta para ajuste fino [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner) debido a los pocos requisitos computacionales necesarios. La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
 )
 demo.queue().launch(share=True, inbrowser=True)
