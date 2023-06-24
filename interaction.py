@@ -169,12 +169,9 @@ demo = gr.Interface(
         gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
         gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k"),
         gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams"),
-        gr.components.Slider(
-            minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"
-        ),
-        gr.components.Slider(
-            minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"
-        ),
+        gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"),
+        gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"),
+        gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory"),
     ],
     outputs=[chatbot, "state"],
     allow_flagging="auto",
