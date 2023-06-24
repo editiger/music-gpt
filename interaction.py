@@ -15,7 +15,7 @@ from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
-parser.add_argument("--lora_path", type=str, default="./guitarGPT/checkpoint-final")
+parser.add_argument("--lora_path", type=str, default="./guitarGPT")
 parser.add_argument("--use_local", type=int, default=1)
 args = parser.parse_args()
 
@@ -162,7 +162,7 @@ demo = gr.Interface(
     fn=interaction,
     inputs=[
         gr.components.Textbox(
-            lines=2, label="Input", placeholder="Tell me about alpacas."
+            lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |"
         ),
         "state",
         gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature"),
