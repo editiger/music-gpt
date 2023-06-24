@@ -158,7 +158,29 @@ def interaction(
     return history, history
 
 chatbot = gr.Chatbot().style(color_map=("green", "pink"))
-demo = gr.Interface(
+
+getInput = gr.Interface(
+    fn=getText,
+    inputs=[
+        gr.components.Textbox(
+            lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |"
+        ),
+        "state",
+        gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature"),
+        gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
+        gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k"),
+        gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams"),
+        gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"),
+        gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"),
+        gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory"),
+    ],
+    outputs=[chatbot, "state"],
+    allow_flagging="auto",
+    title="guitarGPT",
+    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
+)
+
+infe = gr.Interface(
     fn=interaction,
     inputs=[
         gr.components.Textbox(
@@ -176,6 +198,33 @@ demo = gr.Interface(
     outputs=[chatbot, "state"],
     allow_flagging="auto",
     title="guitarGPT",
-    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y se usó la herramienta para ajuste fino [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner) debido a los pocos requisitos computacionales necesarios. La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
+    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
 )
+
+convert = gr.Interface(
+    fn=getAudio,
+    inputs=[
+        gr.components.Textbox(
+            lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |"
+        ),
+        "state",
+        gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature"),
+        gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
+        gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k"),
+        gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams"),
+        gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"),
+        gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"),
+        gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory"),
+    ],
+    outputs=[chatbot, "state"],
+    allow_flagging="auto",
+    title="guitarGPT",
+    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
+)
+
+
+demo = gr.TabbedInterface([getInput, infe, convert], ["Obtener compases", "Chat", "Convertir a audio"])
+
+title="guitarGPT0"
+description="guitarGPT0 se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica."
 demo.queue().launch(share=True, inbrowser=True)
