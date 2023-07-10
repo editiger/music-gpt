@@ -9,3 +9,7 @@ gradio
 appdirs
 triton
 texttable
+xml.dom
+music21
+pygame
+math
