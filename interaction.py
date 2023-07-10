@@ -6,6 +6,11 @@ import gradio as gr
 import argparse
 import warnings
 import os
+from xml.dom import minidom
+import xmlschema
+import math
+import music21
+import pygame
 
 
 assert (
