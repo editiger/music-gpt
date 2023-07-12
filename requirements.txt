@@ -10,4 +10,5 @@ appdirs
 triton
 texttable
 music21
-pygame
+midi2audio
+Ipython
