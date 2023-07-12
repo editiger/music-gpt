@@ -11,4 +11,3 @@ triton
 texttable
 music21
 pygame
-math
