@@ -6,7 +6,7 @@ import gradio as gr
 import argparse
 import warnings
 import os
-from xml.dom import minidom
+import xml.dom.minidom
 import xmlschema
 import math
 import music21
