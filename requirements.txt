@@ -9,7 +9,7 @@ gradio
 appdirs
 triton
 texttable
-xml.dom
+xml
 music21
 pygame
 math
