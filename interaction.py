@@ -11,7 +11,8 @@ import xmlschema
 import math
 import music21
 import pygame
-
+import requests
+import webbrowser
 
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
@@ -113,7 +114,60 @@ model.eval()
 if torch.__version__ >= "2" and sys.platform != "win32":
     model = torch.compile(model)
 
+def play_music(midi_filename):
+    clock = pygame.time.Clock()
+    pygame.mixer.music.load(midi_filename)
+    pygame.mixer.music.play()
+    
+# mixer config
+freq = 44100  # audio CD quality
+bitsize = -16   # unsigned 16 bit
+channels = 2  # 1 is mono, 2 is stereo
+buffer = 1024   # number of samples
+pygame.mixer.init(freq, bitsize, channels, buffer)
+
+# optional volume 0 to 1.0
+pygame.mixer.music.set_volume(0.8)
+
+midi_input = ''
+play_input = False
+
+midi_output = ''
+play_output = False
+
+xml_output = ''
+
+duration = {
+    1:['1','64th'],2:['2','32nd'],3:['2.','32nd'],4:['4','16th'],5:['4+1',''],6:['4.','16th'],7:['4..','16th'],
+    8:['8','eighth'],9:['8+1',''],10:['8+2',''],11:['8+2.',''],12:['8.','eighth'],13:['8.+1',''],14:['8..','eighth'],
+    15:['8…','eighth'],16:['16','quarter'],17:['16+1',''],18:['16+2',''],19:['16+2.',''],20:['16+4',''],21:['8..+4..',''],
+    22:['8..+8',''],23:['16+4..',''],24:['16.','quarter'],25:['16.+1',''],26:['16.+2',''],27:['16+2.',''],
+    28:['16..','quarter'],29:['16..+1',''],30:['16…','quarter'],31:['16….','quarter'],32:['32','half'],33:['32+1','']
+    ,34:['32+2',''],35:['32+2.',''],36:['32+4',''],37:['16….+4.',''],38:['32+4.',''],39:['32+4..',''],40:['32+8',''],
+    41:['32+8+1',''],42:['16…+8.',''],43:['16….+8.',''],44:['32+8.',''],45:['16….+8..',''],46:['32+8..',''],
+    47:['32+8…',''],48:['32.','half'],49:['32.+1',''],50:['32.+2',''],51:['32.+2.',''],52:['32.+4',''],53:['32.+4+1',''],
+    54:['32.+4.',''],55:['32.+4..',''],56:['32..','half'],57:['32..+1',''],58:['32..+2',''],59:['32..+2.',''],
+    60:['32…','half'],61:['32…+1',''],62:['32….','half'],63:['32…..','half'],64:['64','whole'],65:['64+1',''],
+    66:['64+2',''],67:['64+2.',''],68:['64+4',''],69:['64+4+1',''],70:['64+4.',''],71:['64+4..',''],72:['64+8',''],
+    73:['64+8+1',''],74:['64+8+2',''],75:['64+8+2.',''],76:['64+8.',''],77:['64+8.+1',''],78:['64+8..',''],79:['64+8…',''],
+    80:['64+16',''],81:['64+16+1',''],82:['64+16+2',''],83:['64+16+2.',''],84:['64+16+4',''],85:['64+8..+4..',''],
+    86:['64+8..+8',''],87:['64+16+4..',''],88:['64+16.',''],89:['64+16.+1',''],90:['64+16.+2',''],91:['64+16+2.',''],
+    92:['64+16..',''],93:['64+16..+1',''],94:['64+16…',''],95:['64+16….',''],96:['64.','whole'],97:['64.+1',''],98:['64.+2',''],
+    99:['64.+2.',''],100:['64.+4',''],101:['64.+4+1',''],102:['64.+4.',''],103:['64.+4..',''],104:['64.+8',''],
+    105:['64.+8+1',''],106:['64.+8+2',''],107:['64.+8+2.',''],108:['64.+8.',''],109:['64.+8.+1',''],110:['64.+8..',''],
+    111:['64.+8…',''],112:['64..','whole'],113:['64..+1',''],114:['64..+2',''],115:['64..+2.',''],116:['64..+4',''],
+    117:['64..+4+1',''],118:['64..+4.',''],119:['64..+4..',''],120:['64..+8','']}
+
+#19 trastes
 tones = [
+    ['E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6','D6#','E6','F6','F6#','G6','G6#','A6','A6#','B6','C7','C7#','D7','D7#','E7'],
+    ['B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6','D6#','E6','F6','F6#','G6','G6#','A6','A6#','B6'],
+    ['G4','G4#','A4','A4#','B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6','D6#','E6','F6','F6#','G6'],
+    ['D4','D4#','E4','F4','F4#','G4','G4#','A4','A4#','B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6'],
+    ['A3','A3#','B3','C4','C4#','D4','D4#','E4','F4','F4#','G4','G4#','A4','A4#','B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5'],
+    ['D3','D3#','E3','F3','F3#','G3','G3#','A3','A3#','B3','C4','C4#','D4','D4#','E4','F4','F4#','G4','G4#','A4','A4#','B4','C5','C5#','D5']]
+
+tonesJson = [
     ['H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6','L6','A6','B6','C6','D7','E7','F7','G7','H7'],
     ['C4','D5','E5','F5','G5','H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6','L6','A6','B6','C6'],
     ['K4','L4','A4','B4','C4','D5','E5','F5','G5','H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6'],
@@ -121,6 +175,271 @@ tones = [
     ['A3','B3','C3','D4','E4','F4','G4','H4','I4','J4','K4','L4','A4','B4','C4','D5','E5','F5','G5','H5','I5','J5','K5','L5','A5'],
     ['F3','G3','H3','I3','J3','K3','L3','A3','B3','C3','D4','E4','F4','G4','H4','I4','J4','K4','L4','A4','B4','C4','D5','E5','F5']]
 
+
+fraction=[[4,'1/16'], [6,'3/32'], [8,'1/8'], [16,'1/4'],[24,'3/8'],[32,'2/4'],[40,'3/2'],[48,'3/4'],[56,'5/2'],[64,'4/4'],[72,'7/2'],[80,'5/4'],[88,'9/2'],[96,'6/4'],[104,'11/2'],[112,'7/4'],[128,'8/4'],[144,'9/4'],[160,'10/4'],[176,'11/4'],[192,'12/4']
+]
+
+def setSilence(time, xml):
+    txt = duration[time] #["8..", "eighth"]
+    if txt[1] != '':   #tiene símbolo es una única figura
+        dot = txt[0].split('.')
+        xml = xml + '<note><rest/><voice>1</voice>'
+        dot = txt[0].split('.')
+        xml = xml + '<duration>'+dot[0]+'</duration>'
+        xml = xml + '<type>'+txt[1]+'</type>'
+        if len(dot) > 1:
+            for i in range(1, len(dot)):
+                xml = xml + '<dot/>'
+        xml = xml + '</note>'
+        return xml
+    #["32.+4+1", ""], half. + 16th + 64th
+    
+
+    
+    txt = txt[0].split('+')
+    for i in range(0, len(txt)):
+        dot = txt[i].split('.')
+        xml = xml + '<note><rest/><voice>1</voice>'
+        xml = xml + '<duration>'+dot[0]+'</duration>'
+        for k,v in duration.items():
+            if v[0] == dot[0]:
+                xml = xml + '<type>'+v[1]+'</type>' 
+                break
+        if len(dot) > 1:
+            for i in range(1, len(dot)):
+                xml = xml + '<dot/>'
+        xml = xml + '</note>'
+    return xml
+
+#setNote(time, xmlNotes, measure[ind][1], measure[ind][2]) duración nota, letras, octavas
+def setNote(time, xml, letras, posiciones):
+    #  [16, 'DK', ['4', '3']]
+    notas = []
+    for i in range(len(letras)):
+        notas.append(letras[i] + posiciones[i])
+    txt = duration[time] #['1','64th']
+    chords = []
+    if txt[1] != '':   #tiene símbolo es una única figura
+        cont = 0
+        for n in notas:
+            fret = -1
+            for i in range(0,6):         #cada cuerda
+                if i not in chords:   #cuerda ya usada
+                    try:
+                        fret = tonesJson[i].index(n)
+                    except ValueError:
+                        fret = -1
+                    if fret != -1:
+                        chords.append(i)
+                        note = tones[i][fret]    #A3
+                        dot = txt[0].split('.')
+                        xml = xml + '<note><pitch><step>'+note[0]+'</step><octave>'+note[1]+'</octave>'
+                        if len(note) == 3:  #sostenido
+                            xml = xml + '<alter>1</alter>'
+                        xml = xml + '</pitch>'
+                        xml = xml + '<notations><technical><fret>'+str(fret)+'</fret><string>'+str(i+1)+'</string></technical></notations>'
+                        xml = xml + '<voice>1</voice><duration>'+str(time)+'</duration><type>'+txt[1]+'</type>'
+
+                        if len(dot) > 1:
+                            for i in range(1, len(dot)):
+                                xml = xml + '<dot/>'
+                        if cont > 0:
+                            xml = xml + '<chord/>'
+                        cont = cont + 1
+                        xml = xml + '</note>'
+                        break
+        return xml
+    else:
+        #["32.+4+1", ""], half. + 16th + 64th
+        txt2 = txt[0].split('+') #8..+4..
+        contDot = 0
+        for k in range(0, len(txt2)):
+            cont = 0
+            for n in notas:
+                fret = -1
+                for i in range(0,6):         #cada cuerda
+                    if i not in chords:   #cuerda ya usada
+                        try:
+                            fret = tonesJson[i].index(n)
+                        except IndexError:
+                            fret = -1
+                        if fret != -1:
+                            chords.append(i)
+                            note = tones[i][fret]    #A3
+                            dot = txt2[contDot].split('.')
+                            xml = xml + '<note><pitch><step>'+note[0]+'</step><octave>'+note[1]+'</octave>'
+                            if len(note) == 3:  #sostenido
+                                xml = xml + '<alter>1</alter>'
+                            xml = xml + '</pitch>'
+                            xml = xml + '<notations><technical><fret>'+str(fret)+'</fret><string>'+str(i+1)+'</string></technical></notations>'
+                            xml = xml + '<voice>1</voice><duration>'+dot[0]+'</duration>'
+                            for k,v in duration.items():
+                                if v[0] == dot[0]:
+                                    xml = xml + '<type>'+v[1]+'</type>' 
+
+                            if len(dot) > 1:
+                                for i in range(1, len(dot)):
+                                    xml = xml + '<dot/>'
+                            if cont > 0:
+                                xml = xml + '<chord/>'
+                            xml = xml + '</note>'
+                            cont = cont + 1
+                    contDot = contDot + 1
+        return xml
+    cont = 0
+    return xml
+
+
+def getCompasesOk(txt):
+    compases = txt.split('\n')
+    measures = []
+    resp = 'El texto ha sido correctamente procesado.\n\nDe clic en el botón play para reproducir la obra generada.'
+    errores = ''
+    cont = 0
+    flag_error = False
+    for compas in compases:
+        compas = compas.strip() #quitar espacios en blanco
+        notes = compas.split()
+        tempos = []
+        measure = []
+        measure.append(0)
+        cont = cont + 1
+        for n in notes:
+            tempos.append(n)
+        if len(compas) > 0 and len(tempos) > 0 and len(tempos[0]) > 0 and tempos[0][0] == '*' and tempos[-1] == '|': #inicio y fin de compás
+            total = -1
+            suma = 0
+            error = ''
+            tempos.pop()
+            for note in tempos:
+                if total == -1:
+                    totalf = tempos[0].replace("*", "") #duración del compás
+                    if totalf.isdigit():
+                        total = int(totalf)
+                    measure[0] = total
+                else:
+                    #24HI[4,1]
+                    i_0 = note.find("[")
+                    i_f = note.find("]")
+                    if i_f + 1  == len(note) and i_0 != -1: #array posiciones u octavas de la nota
+                        k = ''
+                        for h in note:
+                            if h.isdigit():
+                                k = k + h
+                            else:
+                                break
+                        letras = note[len(k):i_0]
+                        octavas_ = note[i_0 + 1:-1]
+                        if octavas_.find(",") != -1:
+                            octa = octavas_.split(',')
+                        else:
+                            octa = octavas_
+                        octavas = []
+                        for oc in octa:
+                            octavas.append(oc)
+                        if len(letras) == len(octavas): #nota bien formada
+                            flag = True
+                            le = ''
+                            for l in letras:
+                                permitidas = 'ABCDEFGHIJKL'
+                                if permitidas.find(l) == -1:
+                                    flag = False
+                                    le = l
+                                    break
+                            if flag:
+                                suma += int(k)   #duracion acumulada notas
+                                measure.append([int(k), letras, octavas])
+                            else:
+                                error = 'Nota no existente en sistema de guitarGPT (' + le + ')'
+                        else:
+                            error = 'Cantidad de notas no es igual a array de posiciones (' + letras + '[' + octavas_ + '])'
+                    else:
+                        error = 'Compás mal formado'
+            if measure[0] == suma:
+                measures.append(measure)
+            else:
+                flag_error = True
+                errores = errores + 'Compás ' + str(cont) + ' "' + compas + '": La duración indicada del compás (' + str(measure[0])  + ') no es igual a la suma de la duración de las notas/acordes del mismo (' + str(suma) + ').\n'
+        else:
+            flag_error = True
+            errores = errores + 'Compás ' + str(cont) + ' "' + compas + '": Compás vacío o con estructura errada. \n'
+    
+    if not flag_error:
+        errores = resp
+    else:
+        errores = 'El texto ha sido procesado omitiendo los siguientes compases (frases): \n\n' + errores
+    return measures, errores
+
+def getXml(measures):
+    global midi_input
+    global midi_output
+    global xml_output
+    midi_output = ''
+    p = midi_input.split('\\')
+    for k in range(len(p) - 1):
+        midi_output += p[k] + '\\'
+
+    xml_output = midi_output + 'guitarGPT.xml'
+
+    midi_output += 'guitarGPT.mid'
+    
+    xml = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><score-partwise><work><work-title/></work><identification><encoding><software>guitarGPT</software></encoding><creator type="composer"/></identification><part-list>'
+    xml = xml + '<score-part id="P1"><part-name/><score-instrument id="P1-I1"><instrument-name>#1</instrument-name></score-instrument><midi-instrument id="P1-I1"><midi-channel>1</midi-channel><midi-program>25</midi-program></midi-instrument></score-part></part-list>'
+    xml = xml + '<part id="P1">'
+    
+    contMeasure = 1
+    num = '0'         #numerador beats
+    den = '0'         #denominador beat-type
+    
+    header = '<attributes><divisions>16</divisions><key><fifths>0</fifths><mode>major</mode></key><clef><sign>G</sign><line>2</line></clef><time>'
+    footer = '</time><staff-details><staff-lines>6</staff-lines>'
+    footer = footer + '<staff-tuning line="1"><tuning-step>D</tuning-step><tuning-octave>3</tuning-octave></staff-tuning>'
+    footer = footer + '<staff-tuning line="2"><tuning-step>A</tuning-step><tuning-octave>3</tuning-octave></staff-tuning>'
+    footer = footer + '<staff-tuning line="3"><tuning-step>D</tuning-step><tuning-octave>4</tuning-octave></staff-tuning>'
+    footer = footer + '<staff-tuning line="4"><tuning-step>G</tuning-step><tuning-octave>4</tuning-octave></staff-tuning>'
+    footer = footer + '<staff-tuning line="5"><tuning-step>B</tuning-step><tuning-octave>4</tuning-octave></staff-tuning>'
+    footer = footer + '<staff-tuning line="6"><tuning-step>E</tuning-step><tuning-octave>5</tuning-octave></staff-tuning>'
+    footer = footer + '</staff-details></attributes><direction placement="above"><sound tempo="120"/></direction>'
+    
+    for measure in measures:
+        xml = xml + '<measure number="'+str(contMeasure)+'">'
+        timeMeasure = measure[0]  #tiempo total del compás
+        xmlNotes = ''
+        for ind in range(1, len(measure)):
+            #[16, 'D', ['5']], [16, 'DK', ['4', '3']], [16, '', []]
+            time = measure[ind][0]    #duración de la nota/acorde
+            if measure[ind][2] == []:
+                xmlNotes = setSilence(time, xmlNotes)
+            else:
+                xmlNotes = setNote(time, xmlNotes, measure[ind][1], measure[ind][2])
+        changeFrac = 0
+        for k in range(0, len(fraction)):
+            val = fraction[k]
+            nums = val[1].split('/')
+            if val[0] == timeMeasure:
+                if num != nums[0] or den != nums[1]:
+                    num = nums[0]
+                    den = nums[1]
+                    changeFrac = 1
+                    break
+        if changeFrac == 1:
+            if contMeasure == 1:
+                xml = xml + header + '<beats>'+num+'</beats><beat-type>'+den+'</beat-type>'
+                xml = xml + footer
+            else:
+                xml = xml + '<attributes><time><beats>'+num+'</beats><beat-type>'+den+'</beat-type></time></attributes>'
+        xml = xml + xmlNotes + '</measure>'
+        contMeasure = contMeasure + 1
+    xml = xml + '</part>'
+    xml = xml + '</score-partwise>'
+    xmlFile = open(xml_output, "w")
+    xmlFile.write(xml)
+    xmlFile.close()
+    webbrowser.open(xml_output,new=2)
+    midi_output = xml_output.replace(".xml", ".mid")
+    c = music21.converter.parse(xml_output)
+    c.write('midi', midi_output)
+    
 def getChord(notes, i, SIXCHORD, acorde):   
     j = i + 1
     while j < len(notes):
@@ -138,7 +457,7 @@ def getChord(notes, i, SIXCHORD, acorde):
                 fret = fret - 12
             while fret < 0:
                 fret = fret + 12
-            acorde[string - 1] = tones[string - 1][fret]
+            acorde[string - 1] = tonesJson[string - 1][fret]
             j = j + 1
         else:
             #nota no es parte del acorde, es nueva, retorna a flujo
@@ -150,12 +469,16 @@ def getChord(notes, i, SIXCHORD, acorde):
     return i, acorde
 
 def processXml(file):
+    global midi_input
     name = file.name
     title = name.split('\\')[-1]
+    midi_input = name.replace(".xml", ".mid")
+    c = music21.converter.parse(file.name)
+    c.write('midi', midi_input)
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
     n = len(parts)
-    resp = title + '\n\n'
+    resp = name + '\n\n' + title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
     if n > 1:
         resp += ' Únicamente se procesará la primer pista.'
@@ -178,7 +501,6 @@ def processXml(file):
                     tuning = m.getElementsByTagName('tuning-step')
                     for i in range(0,len(tuning)):
                         SIXCHORD = tuning[i].firstChild.data
-                        print("cuerda", SIXCHORD)
                         break
                 aux = m.getElementsByTagName('fifths')
                 if len(aux) > 0:
@@ -198,15 +520,17 @@ def processXml(file):
                     duration = int(notes[i].getElementsByTagName('duration')[0].firstChild.data) #duracion en unidades de tiempo rango = (0, divisions]
                     semifuse = divisions / 16 #duración de una semi fusa respecto a una negra
                     #solo permitir unidades exactas de semifusa (quitar adornos)
+                    semifuse = int(semifuse)
+                    #1 1.0
                     if duration < semifuse:
                         duration = semifuse
                     if duration > semifuse:
                         div = duration / semifuse
                         decimal, integer = math.modf(div)
-                    if decimal <= 5:
-                        duration = semifuse * integer
-                    else:
-                        duration = semifuse * (integer + 1)
+                        if decimal <= 5:
+                            duration = semifuse * integer
+                        else:
+                            duration = semifuse * (integer + 1)
 
                     tempo = 16 * duration / divisions #duración en cantidad de semifusas de la nota
                     tempo = int(tempo)
@@ -228,7 +552,7 @@ def processXml(file):
                             fret = fret - 12
                         while fret < 0:
                             fret = fret + 12
-                        acorde[string - 1] = tones[string - 1][fret]
+                        acorde[string - 1] = tonesJson[string - 1][fret]
                         #si siguientes notas hacen parte de acorde, se añaden
                         i, acorde = getChord(notes, i, SIXCHORD, acorde)
                         a0_ = acorde.copy()
@@ -247,7 +571,7 @@ def processXml(file):
                 #insertar tiempo de complete
                 if timeMeasure < totaltime:
                     rest = totaltime - timeMeasure
-                    txt0 = str(int(rest)) + "[] " + txt0
+                    txt0 = txt0 + str(int(rest)) + "[] "
                 #quitar tiempo sobrante
                 if timeMeasure > totaltime:
                     sobra = timeMeasure - totaltime
@@ -266,6 +590,11 @@ def processXml(file):
             break 
     return resp
 
+def getAudio(txt):
+    measures, errores = getCompasesOk(txt)
+    if len(measures) > 0:
+        getXml(measures)
+    return errores
 
 def interaction(
     input,
@@ -316,59 +645,94 @@ def interaction(
     print(history)
     return history, history
 
-def getAudio(text):
-    return text
+def playSong(midi):
+    if len(midi) > 0:
+        play_music(midi)
+
+        
+with gr.Blocks() as demo:
+    gr.HTML("<div align='center'><bold><h1>guitarGPT</h1></bold></div>")
+    gr.Markdown("guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation).")
+    gr.HTML("<p>La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.</p>")
     
-def getText(file):       
-    return processXml(file)
-
-uploadButton = gr.UploadButton("Cargue su archivo musicXML", file_types=[".xml"])
+    def playSongInput():
+        global play_input
+        global midi_input
+        play_input = not play_input
+        if not play_input:
+            pygame.mixer.music.fadeout(1000)
+            pygame.mixer.music.pause()
+        else:
+            playSong(midi_input)
     
-chatbot = gr.Chatbot().style(color_map=("green", "pink"))
+    def playSongOutput():
+        global play_output
+        global midi_output
+        play_output = not play_output
+        if not play_output:
+            pygame.mixer.music.fadeout(1000)
+            pygame.mixer.music.pause()
+        else:
+            playSong(midi_output)
+        
+    with gr.Tab("Get text"):
+                
+        def getText(file):
+            return processXml(file)
+        
+        gr.HTML("<div><p>Cargue su archivo musicXML para guitarra y se generará el correspondiente texto para poder interactuar con guitarGPT.</p><br><p>Una vez generado el texto solo use un compás (una de las líneas) para ingresarla en el chat de guitarGPT</p></div>")
+        
+        with gr.Row():
+            with gr.Column(scale=10):
+                out = gr.Textbox()
+            with gr.Column(scale=1):
+                upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
+                upload_button.upload(getText, upload_button, out)
+                playInput = gr.Button("Play/Stop Song")
 
-chatbotb = gr.Chatbot().style(color_map=("green", "pink"))
+        playInput.click(playSongInput)
+        
+    
+    with gr.Tab("Chat"):
+        
+        def func():
+            return True
+        
+        gr.HTML("<div><p>Pegue solo una la de las líneas (compás) generadas en la pestaña anterior</p><br><p>El texto generado cópielo y péguelo en la siguiente pestaña para obtener el audio correspondiente.</p></div>")
+        
+        with gr.Row():
+            with gr.Column(scale=2):
+                chatbot = gr.Chatbot().style(color_map=("green", "pink"))
+            
+            with gr.Column(scale=1):
+                inp = gr.components.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
+                temp = gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature")
+                topp = gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p")
+                topk = gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k")
+                beams = gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams")
+                tokens = gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens")
+                repet = gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty")
+                memory = gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory")         
+                btn = gr.Button("Send")
+        
+            btn.click(func, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
+          
+    
+    with gr.Tab("Get Audio"):
+        
+        gr.HTML("<div><p>Pegue el texto generado por guitarGPT y podrá reproducir el audio obtenido y descargar el archivo musicXML correspondiente</p></div>")
+        
+        
+        with gr.Row():
+            with gr.Column():
+                out = gr.Textbox(label="Output")
+            with gr.Column():
+                inp = gr.Textbox(lines=5, label="Input", placeholder="*48 16D[5] 16K[4] 16I[4] |\n*48 16H[4] 16F[4] 16D[4] |\n*48 16F[4] 16D[4] 16C[3] |\n*48 48D[4] |\n... ")
+                btn = gr.Button("Send")
+                playOutput = gr.Button("Play/Stop Song")
+        
+        btn.click(getAudio, inputs=inp, outputs=out)
 
-getInput = gr.Interface(
-    fn=getText, 
-    inputs = uploadButton,
-    outputs="text",
-    allow_flagging="never",
-    title="guitarGPT",
-    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
-    article="Cargue su archivo musicXML para obtener todos los compases en formato de texto adecuado para el chat.\nCopie y pegue un solo compás en el chat.",
-)
-
-infe = gr.Interface(
-    fn=interaction,
-    inputs=[
-        gr.components.Textbox(
-            lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |"
-        ),
-        "state",
-        gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature"),
-        gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
-        gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k"),
-        gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams"),
-        gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens"),
-        gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty"),
-        gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory"),
-    ],
-    outputs=[chatbot, "state"],
-    allow_flagging="auto",
-    title="guitarGPT",
-    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
-)
-
-convert = gr.Interface(
-    fn=getAudio, 
-    inputs = gr.components.Textbox(lines=5, label="Input", placeholder="*64 16AJ[3,5] 16A[4] 16BH[3,5] 16K[4] |\n*64 16C[3] 16L[4] 8EH[5,3] 8F[5] 16F[4] |\n..."),
-    outputs="text",
-    allow_flagging="never",
-    title="guitarGPT",
-    description="guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation). La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.",
-    article="Copie y pegue la salida del chat para traducir a audio.",
-)
-
-demo = gr.TabbedInterface([getInput, infe, convert], ["Obtener compases", "Chat", "Convertir a audio"])
+        playOutput.click(playSongOutput)
 
 demo.queue().launch(share=True, inbrowser=True)
