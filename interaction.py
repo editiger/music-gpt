@@ -7,7 +7,6 @@ import argparse
 import warnings
 import os
 import xml.dom.minidom
-import xmlschema
 import math
 import music21
 import pygame
