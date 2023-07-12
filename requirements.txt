@@ -12,3 +12,4 @@ texttable
 music21
 midi2audio
 Ipython
+fluidsynth
