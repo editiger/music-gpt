@@ -13,7 +13,6 @@ import pygame
 import requests
 import webbrowser
 from IPython.display import Audio
-!apt install fluidsynth
 
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
