@@ -12,6 +12,8 @@ import music21
 import pygame
 import requests
 import webbrowser
+from IPython.display import Audio
+!apt install fluidsynth
 
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
@@ -114,9 +116,10 @@ if torch.__version__ >= "2" and sys.platform != "win32":
     model = torch.compile(model)
 
 def play_music(midi_filename):
-    clock = pygame.time.Clock()
-    pygame.mixer.music.load(midi_filename)
-    pygame.mixer.music.play()
+    out = midi_filename.replace(".mid", "")
+    !fluidsynth -ni font.sf2 out.mid -F out.wav -r 44100
+    webbrowser.open(midi_filename,new=2)
+    Audio(out)
     
 # mixer config
 freq = 44100  # audio CD quality
@@ -129,11 +132,8 @@ pygame.mixer.init(freq, bitsize, channels, buffer)
 pygame.mixer.music.set_volume(0.8)
 
 midi_input = ''
-play_input = False
 
 midi_output = ''
-play_output = False
-
 xml_output = ''
 
 duration = {
@@ -373,6 +373,9 @@ def getXml(measures):
     global midi_input
     global midi_output
     global xml_output
+    global play_output
+    play_output = False
+    
     midi_output = ''
     p = midi_input.split('\\')
     for k in range(len(p) - 1):
@@ -468,12 +471,11 @@ def getChord(notes, i, SIXCHORD, acorde):
     return i, acorde
 
 def processXml(file):
-    global midi_input
+    global ctrlInp
     name = file.name
-    title = name.split('\\')[-1]
-    midi_input = name.replace(".xml", ".mid")
+    title = name.split('/')[-1]
     c = music21.converter.parse(file.name)
-    c.write('midi', midi_input)
+    c.write('midi', 'entra.mid')
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
     n = len(parts)
@@ -586,7 +588,11 @@ def processXml(file):
 
                 txt0 = '*' + str(totaltime) + ' ' + txt0 + '| \n'
                 resp += txt0
-            break 
+            break
+    !cp /usr/share/sounds/sf2/FluidR3_GM.sf2 ./font.sf2
+    !fluidsynth -ni font.sf2 entra.mid -F entra.wav -r 44100
+    html='<script>var x = document.getElementById("myAudio"); function playAudio() { x.play(); } function pauseAudio() { x.pause(); } </script><div><audio controls><source src="entra.wav" type="audio/wav">Mi audio</audio></div>'
+  
     return resp
 
 def getAudio(txt):
@@ -607,6 +613,7 @@ def interaction(
     max_memory=256,
     **kwargs,
 ):
+    
     now_input = input
     history = history or []
     if len(history) != 0:
@@ -643,10 +650,10 @@ def interaction(
     history.append((now_input, output))
     print(history)
     return history, history
-
+    
 def playSong(midi):
     if len(midi) > 0:
-        play_music(midi)
+        Audio(midi)
 
         
 with gr.Blocks() as demo:
@@ -657,33 +664,30 @@ with gr.Blocks() as demo:
     def playSongInput():
         global play_input
         global midi_input
-        play_input = not play_input
         if not play_input:
-            pygame.mixer.music.fadeout(1000)
-            pygame.mixer.music.pause()
-        else:
             playSong(midi_input)
+            play_input = not play_input
     
     def playSongOutput():
         global play_output
         global midi_output
         play_output = not play_output
         if not play_output:
-            pygame.mixer.music.fadeout(1000)
-            pygame.mixer.music.pause()
-        else:
             playSong(midi_output)
+            play_outputt = not play_output
         
     with gr.Tab("Get text"):
                 
         def getText(file):
-            return processXml(file)
+            return processXml(file) 
         
         gr.HTML("<div><p>Cargue su archivo musicXML para guitarra y se generará el correspondiente texto para poder interactuar con guitarGPT.</p><br><p>Una vez generado el texto solo use un compás (una de las líneas) para ingresarla en el chat de guitarGPT</p></div>")
         
         with gr.Row():
             with gr.Column(scale=10):
                 out = gr.Textbox()
+                songInput = gr.HTML("<div><audio controls id='playInput'><source src='/content/entra.wav' type='audio/wav'></audio></div>")
+                #songInput = gr.HTML(display(Audio('entra.wav')))
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
                 upload_button.upload(getText, upload_button, out)
@@ -733,5 +737,7 @@ with gr.Blocks() as demo:
         btn.click(getAudio, inputs=inp, outputs=out)
 
         playOutput.click(playSongOutput)
-
-demo.queue().launch(share=True, inbrowser=True)
+    
+        
+demo.launch(share=True, inbrowser=True, debug=True)
+#demo.launch()
