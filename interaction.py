@@ -6,13 +6,16 @@ import gradio as gr
 import argparse
 import warnings
 import os
-import xml.dom.minidom
+from xml.dom import minidom
 import math
 import music21
-import pygame
-import requests
-import webbrowser
 from IPython.display import Audio
+from collections import defaultdict
+from mido import MidiFile
+from pydub import AudioSegment
+from pydub.generators import Sine
+
+
 
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
@@ -21,10 +24,10 @@ from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
-parser.add_argument("--lora_path", type=str, default="editigerun/guitarGPT")
+parser.add_argument("--lora_path", type=str, default="editigerun/guitarGPT2")
 parser.add_argument("--use_local", type=int, default=1)
 args = parser.parse_args()
-print("prob ", args.model_path, args.lora_path, args.use_local)
+
 tokenizer = LlamaTokenizer.from_pretrained(args.model_path)
 
 LOAD_8BIT = True
@@ -79,9 +82,11 @@ elif device == "mps":
         torch_dtype=torch.float16,
     )
 else:
+    print('load checkpoints')
     model = LlamaForCausalLM.from_pretrained(
         BASE_MODEL, device_map={"": device}, low_cpu_mem_usage=True
     )
+    print('model', model, LORA_WEIGHTS)
     model = PeftModel.from_pretrained(
         model,
         LORA_WEIGHTS,
@@ -113,27 +118,6 @@ if not LOAD_8BIT:
 model.eval()
 if torch.__version__ >= "2" and sys.platform != "win32":
     model = torch.compile(model)
-
-def play_music(midi_filename):
-    out = midi_filename.replace(".mid", "")
-    !fluidsynth -ni font.sf2 out.mid -F out.wav -r 44100
-    webbrowser.open(midi_filename,new=2)
-    Audio(out)
-    
-# mixer config
-freq = 44100  # audio CD quality
-bitsize = -16   # unsigned 16 bit
-channels = 2  # 1 is mono, 2 is stereo
-buffer = 1024   # number of samples
-pygame.mixer.init(freq, bitsize, channels, buffer)
-
-# optional volume 0 to 1.0
-pygame.mixer.music.set_volume(0.8)
-
-midi_input = ''
-
-midi_output = ''
-xml_output = ''
 
 duration = {
     1:['1','64th'],2:['2','32nd'],3:['2.','32nd'],4:['4','16th'],5:['4+1',''],6:['4.','16th'],7:['4..','16th'],
@@ -176,6 +160,47 @@ tonesJson = [
 
 fraction=[[4,'1/16'], [6,'3/32'], [8,'1/8'], [16,'1/4'],[24,'3/8'],[32,'2/4'],[40,'3/2'],[48,'3/4'],[56,'5/2'],[64,'4/4'],[72,'7/2'],[80,'5/4'],[88,'9/2'],[96,'6/4'],[104,'11/2'],[112,'7/4'],[128,'8/4'],[144,'9/4'],[160,'10/4'],[176,'11/4'],[192,'12/4']
 ]
+
+tempo = 100 # bpm
+mid = None
+output = None
+
+def note_to_freq(note, concert_A=440.0):
+    return (2.0 ** ((note - 69) / 12.0)) * concert_A
+
+def ticks_to_ms(ticks):
+    global tempo
+    global mid
+    tick_ms = (60000.0 / tempo) / mid.ticks_per_beat
+    return ticks * tick_ms
+
+def midiToWav():
+    global mid
+    global output
+    output = AudioSegment.silent(mid.length * 1000.0)
+    try:
+        for track in mid.tracks:
+            current_pos = 0.0
+
+            current_notes = defaultdict(dict)
+
+            for msg in track:
+                current_pos += ticks_to_ms(msg.time)
+
+                if msg.type == 'note_on':
+                    current_notes[msg.channel][msg.note] = (current_pos, msg)
+
+                if msg.type == 'note_off':
+                    start_pos, start_msg = current_notes[msg.channel].pop(msg.note)
+
+                    duration = current_pos - start_pos
+
+                    signal_generator = Sine(note_to_freq(msg.note))
+                    rendered = signal_generator.to_audio_segment(duration=duration-50, volume=-20).fade_out(100).fade_in(30)
+
+                    output = output.overlay(rendered, start_pos)
+    except:
+        pass
 
 def setSilence(time, xml):
     txt = duration[time] #["8..", "eighth"]
@@ -369,20 +394,8 @@ def getCompasesOk(txt):
     return measures, errores
 
 def getXml(measures):
-    global midi_input
-    global midi_output
-    global xml_output
-    global play_output
-    play_output = False
-    
-    midi_output = ''
-    p = midi_input.split('\\')
-    for k in range(len(p) - 1):
-        midi_output += p[k] + '\\'
-
-    xml_output = midi_output + 'guitarGPT.xml'
-
-    midi_output += 'guitarGPT.mid'
+    global mid
+    global output
     
     xml = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><score-partwise><work><work-title/></work><identification><encoding><software>guitarGPT</software></encoding><creator type="composer"/></identification><part-list>'
     xml = xml + '<score-part id="P1"><part-name/><score-instrument id="P1-I1"><instrument-name>#1</instrument-name></score-instrument><midi-instrument id="P1-I1"><midi-channel>1</midi-channel><midi-program>25</midi-program></midi-instrument></score-part></part-list>'
@@ -433,13 +446,14 @@ def getXml(measures):
         contMeasure = contMeasure + 1
     xml = xml + '</part>'
     xml = xml + '</score-partwise>'
-    xmlFile = open(xml_output, "w")
+    xmlFile = open('guitarGPT.xml', "w")
     xmlFile.write(xml)
     xmlFile.close()
-    webbrowser.open(xml_output,new=2)
-    midi_output = xml_output.replace(".xml", ".mid")
-    c = music21.converter.parse(xml_output)
-    c.write('midi', midi_output)
+    c = music21.converter.parse('guitarGPT.xml')
+    c.write('midi', 'guitarGPT.mid')
+    mid = MidiFile("guitarGPT.mid")
+    midiToWav()
+    output.export("guitarGPT.wav", format="wav")
     
 def getChord(notes, i, SIXCHORD, acorde):   
     j = i + 1
@@ -470,7 +484,8 @@ def getChord(notes, i, SIXCHORD, acorde):
     return i, acorde
 
 def processXml(file):
-    global ctrlInp
+    global output
+    global mid
     name = file.name
     title = name.split('/')[-1]
     c = music21.converter.parse(file.name)
@@ -588,21 +603,23 @@ def processXml(file):
                 txt0 = '*' + str(totaltime) + ' ' + txt0 + '| \n'
                 resp += txt0
             break
-    !cp /usr/share/sounds/sf2/FluidR3_GM.sf2 ./font.sf2
-    !fluidsynth -ni font.sf2 entra.mid -F entra.wav -r 44100
-    html='<script>var x = document.getElementById("myAudio"); function playAudio() { x.play(); } function pauseAudio() { x.pause(); } </script><div><audio controls><source src="entra.wav" type="audio/wav">Mi audio</audio></div>'
-  
-    return resp
+    
+    mid = MidiFile("entra.mid")
+    midiToWav()
+    output.export("entra.wav", format="wav")
+    return resp, "entra.mid", "entra.wav"
 
 def getAudio(txt):
     measures, errores = getCompasesOk(txt)
     if len(measures) > 0:
         getXml(measures)
-    return errores
+         
+    return errores, "guitarGPT.mid", "guitarGPT.xml", "guitarGPT.wav"
 
+
+#btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
 def interaction(
     input,
-    history,
     temperature=0.1,
     top_p=0.75,
     top_k=40,
@@ -612,7 +629,7 @@ def interaction(
     max_memory=256,
     **kwargs,
 ):
-    
+    history = ''
     now_input = input
     history = history or []
     if len(history) != 0:
@@ -647,34 +664,18 @@ def interaction(
     if 'User:' in output:
         output = output.split("User:")[0]
     history.append((now_input, output))
-    print(history)
-    return history, history
-    
-def playSong(midi):
-    if len(midi) > 0:
-        Audio(midi)
+    for elemento in history:
+        print(elemento)
+        print(type(elemento))
+    #history = history.replace("| ", "|\n")
+    return history
 
-        
+blockInput = gr.File("entra.mid", label="midi")  
 with gr.Blocks() as demo:
     gr.HTML("<div align='center'><bold><h1>guitarGPT</h1></bold></div>")
     gr.Markdown("guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation).")
     gr.HTML("<p>La pretensión del presente proyecto es únicamente hacer una contribución a la comunidad académica.</p>")
     
-    def playSongInput():
-        global play_input
-        global midi_input
-        if not play_input:
-            playSong(midi_input)
-            play_input = not play_input
-    
-    def playSongOutput():
-        global play_output
-        global midi_output
-        play_output = not play_output
-        if not play_output:
-            playSong(midi_output)
-            play_outputt = not play_output
-        
     with gr.Tab("Get text"):
                 
         def getText(file):
@@ -685,20 +686,17 @@ with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column(scale=10):
                 out = gr.Textbox()
-                songInput = gr.HTML("<div><audio controls id='playInput'><source src='/content/entra.wav' type='audio/wav'></audio></div>")
-                #songInput = gr.HTML(display(Audio('entra.wav')))
+                with gr.Row():
+                    with gr.Column():
+                        midiInput = gr.File("entra.mid", label="midi")
+                    with gr.Column():
+                        playInput = gr.Audio("entra.wav")
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
-                upload_button.upload(getText, upload_button, out)
-                playInput = gr.Button("Play/Stop Song")
-
-        playInput.click(playSongInput)
+                upload_button.upload(getText, upload_button, [out, midiInput, playInput])
         
     
     with gr.Tab("Chat"):
-        
-        def func():
-            return True
         
         gr.HTML("<div><p>Pegue solo una la de las líneas (compás) generadas en la pestaña anterior</p><br><p>El texto generado cópielo y péguelo en la siguiente pestaña para obtener el audio correspondiente.</p></div>")
         
@@ -715,9 +713,9 @@ with gr.Blocks() as demo:
                 tokens = gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens")
                 repet = gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty")
                 memory = gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory")         
-                btn = gr.Button("Send")
+                btnI = gr.Button("Send")
         
-            btn.click(func, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
+            btnI.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
           
     
     with gr.Tab("Get Audio"):
@@ -728,15 +726,18 @@ with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
                 out = gr.Textbox(label="Output")
+                with gr.Row():
+                    with gr.Column():
+                        midiOutput = gr.File("guitarGPT.mid", label="midi", elem_id='fileInput')
+                    with gr.Column():
+                        xmlOutput = gr.File("guitarGPT.xml", label="xml")
+                    with gr.Column():
+                        playOutput = gr.Audio("guitarGPT.wav")
             with gr.Column():
                 inp = gr.Textbox(lines=5, label="Input", placeholder="*48 16D[5] 16K[4] 16I[4] |\n*48 16H[4] 16F[4] 16D[4] |\n*48 16F[4] 16D[4] 16C[3] |\n*48 48D[4] |\n... ")
-                btn = gr.Button("Send")
-                playOutput = gr.Button("Play/Stop Song")
+                btnO = gr.Button("Send")
         
-        btn.click(getAudio, inputs=inp, outputs=out)
+            btnO.click(getAudio, inp, [out, midiOutput, xmlOutput, playOutput])
 
-        playOutput.click(playSongOutput)
-    
-        
-demo.launch(share=True, inbrowser=True, debug=True)
+demo.launch(share=True, inbrowser=True, debug=False)
 #demo.launch()
