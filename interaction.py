@@ -24,7 +24,7 @@ from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
-parser.add_argument("--lora_path", type=str, default="editigerun/guitarGPT2")
+parser.add_argument("--lora_path", type=str, default="editigerun/guitarGPT")
 parser.add_argument("--use_local", type=int, default=1)
 args = parser.parse_args()
 
