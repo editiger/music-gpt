@@ -14,13 +14,20 @@ from collections import defaultdict
 from mido import MidiFile
 from pydub import AudioSegment
 from pydub.generators import Sine
-
-
+import shutil
 
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
+
+shutil.copyfile("/content/guitarGPT/entra.mid", "/content/entra.mid")
+shutil.copyfile("/content/guitarGPT/entra.wav", "/content/entra.wav")
+shutil.copyfile("/content/guitarGPT/guitarGPT.mid", "/content/guitarGPT.mid")
+shutil.copyfile("/content/guitarGPT/guitarGPT.xml", "/content/guitarGPT.xml")
+shutil.copyfile("/content/guitarGPT/guitarGPT.wav", "/content/guitarGPT.wav")
+
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
@@ -273,18 +280,18 @@ def setNote(time, xml, letras, posiciones):
                         break
         return xml
     else:
-        #["32.+4+1", ""], half. + 16th + 64th
-        txt2 = txt[0].split('+') #8..+4..
+        #["32.+4+1", ""], half. + 16th + 64th 21H5
+        txt2 = txt[0].split('+') #[8.., 4..]
         contDot = 0
         for k in range(0, len(txt2)):
             cont = 0
-            for n in notas:
+            for n in notas: #[H5,I3]
                 fret = -1
                 for i in range(0,6):         #cada cuerda
                     if i not in chords:   #cuerda ya usada
                         try:
                             fret = tonesJson[i].index(n)
-                        except IndexError:
+                        except ValueError:
                             fret = -1
                         if fret != -1:
                             chords.append(i)
@@ -307,9 +314,8 @@ def setNote(time, xml, letras, posiciones):
                                 xml = xml + '<chord/>'
                             xml = xml + '</note>'
                             cont = cont + 1
-                    contDot = contDot + 1
+            contDot = contDot + 1
         return xml
-    cont = 0
     return xml
 
 
@@ -658,16 +664,17 @@ def interaction(
             repetition_penalty=float(repetition_penalty),
         )
     s = generation_output.sequences[0]
+    print(s)
     output = tokenizer.decode(s)
     output = output.split("### Response:")[1].strip()
     output = output.replace("Belle", "Vicuna")
     if 'User:' in output:
         output = output.split("User:")[0]
+
+    now_input = now_input.replace("| ", "|\n")
+    output = output.replace("| ", "|\n")
     history.append((now_input, output))
-    for elemento in history:
-        print(elemento)
-        print(type(elemento))
-    #history = history.replace("| ", "|\n")
+  
     return history
 
 blockInput = gr.File("entra.mid", label="midi")  
