@@ -9,8 +9,7 @@ gradio
 appdirs
 triton
 texttable
-Ipython
-fluidsynth
-xmlschema
 music21
-midi2audio
+pydub
+mido
+IPython
