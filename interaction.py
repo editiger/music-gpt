@@ -482,7 +482,8 @@ def processXml(file):
     parts = xml.getElementsByTagName('part')
     strings = xml.getElementsByTagName('string')
     if len(strings) == 0:
-        return "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra."
+        errores = "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra.\n"
+        return errores, "entra.mid", "entra.wav"
     n = len(parts)
     resp = title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
@@ -676,8 +677,6 @@ def interaction(
                 if output[-1] in [tokenizer.eos_token_id]:
                     break
                 decoded_output = decoded_output.replace("| ", "|\n")
-                decoded_output = decoded_output.replace("instruction", "Humano")
-                decoded_output = decoded_output.replace("completion", "guitarGPT")
                 yield decoded_output          
         return  # early return for stream_output
 
@@ -727,7 +726,7 @@ with gr.Blocks() as demo:
                 		xml = gr.Video(os.path.join(os.path.dirname(__file__),"verificar.mp4"), label="Verificar si un xml sirve")
                 with gr.Row():
                 	f1 = gr.File(os.path.join(os.path.dirname(__file__), "mozartmenuett.xml"), label="Ejemplo xml 1")
-                	f2 = gr.FIle(os.path.join(os.path.dirname(__file__), "aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
+                	f2 = gr.File(os.path.join(os.path.dirname(__file__), "aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
 
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
