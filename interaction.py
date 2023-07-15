@@ -16,18 +16,12 @@ from pydub import AudioSegment
 from pydub.generators import Sine
 import shutil
 
+from utils.callbacks import Iteratorize, Stream
+
 assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
-
-shutil.copyfile("/content/guitarGPT/entra.mid", "/content/entra.mid")
-shutil.copyfile("/content/guitarGPT/entra.wav", "/content/entra.wav")
-shutil.copyfile("/content/guitarGPT/guitarGPT.mid", "/content/guitarGPT.mid")
-shutil.copyfile("/content/guitarGPT/guitarGPT.xml", "/content/guitarGPT.xml")
-shutil.copyfile("/content/guitarGPT/guitarGPT.wav", "/content/guitarGPT.wav")
-
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
@@ -89,11 +83,10 @@ elif device == "mps":
         torch_dtype=torch.float16,
     )
 else:
-    print('load checkpoints')
     model = LlamaForCausalLM.from_pretrained(
         BASE_MODEL, device_map={"": device}, low_cpu_mem_usage=True
     )
-    print('model', model, LORA_WEIGHTS)
+
     model = PeftModel.from_pretrained(
         model,
         LORA_WEIGHTS,
@@ -101,23 +94,12 @@ else:
     )
 
 def generate_prompt(instruction, input=None):
-    if input:
-        return f"""The following is a conversation between an AI assistant called Assistant and a human user called User.
+        return f"""La siguiente es la conversación entre guitarGPT y un humano.
 
-### Instruction:
+### instruction:
 {instruction}
 
-### Input:
-{input}
-
-### Response:"""
-    else:
-        return f"""The following is a conversation between an AI assistant called Assistant and a human user called User.
-
-### Instruction:
-{instruction}
-
-### Response:"""
+### completion:"""
 
 if not LOAD_8BIT:
     model.half()  # seems to fix bugs for some users.
@@ -494,12 +476,15 @@ def processXml(file):
     global mid
     name = file.name
     title = name.split('/')[-1]
-    c = music21.converter.parse(file.name)
+    c = music21.converter.parse(name)
     c.write('midi', 'entra.mid')
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
+    strings = xml.getElementsByTagName('string')
+    if len(strings) == 0:
+        return "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra."
     n = len(parts)
-    resp = name + '\n\n' + title + '\n\n'
+    resp = title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
     if n > 1:
         resp += ' Únicamente se procesará la primer pista.'
@@ -623,30 +608,79 @@ def getAudio(txt):
     return errores, "guitarGPT.mid", "guitarGPT.xml", "guitarGPT.wav"
 
 
-#btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
+#btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, stream], outputs=chatbot)
 def interaction(
     input,
     temperature=0.1,
     top_p=0.75,
     top_k=40,
     num_beams=4,
-    max_new_tokens=128,
-    repetition_penalty=1.0
+    max_new_tokens=500,
+    repetition_penalty=1.0,
+    stream=False,
+    **kwargs,
 ):
+    torch.cuda.empty_cache()
+
     history = ''
     now_input = input
     history = history or []
-    print(input)
-    print(len(input))
+
     prompt = generate_prompt(input)
+
     inputs = tokenizer(prompt, return_tensors="pt")
     input_ids = inputs["input_ids"].to(device)
+
     generation_config = GenerationConfig(
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
-        num_beams=num_beams
+        num_beams=num_beams,
+        **kwargs,
     )
+
+    generate_params = {
+        "input_ids": input_ids,
+        "generation_config": generation_config,
+        "return_dict_in_generate": True,
+        "output_scores": True,
+        "max_new_tokens": max_new_tokens,
+        "repetition_penalty":float(repetition_penalty),
+	  }
+
+    if stream:
+		    # Stream the reply 1 token at a time.
+		    # This is based on the trick of using 'stopping_criteria' to create an iterator,
+        # from https://github.com/oobabooga/text-generation-webui/blob/ad37f396fc8bcbab90e11ecf17c56c97bfbd4a9c/modules/text_generation.py#L216-L243.
+
+        def generate_with_callback(callback=None, **kwargs):
+            kwargs.setdefault(
+                "stopping_criteria", transformers.StoppingCriteriaList()
+            )
+            kwargs["stopping_criteria"].append(
+                Stream(callback_func=callback)
+            )
+            with torch.no_grad():
+                model.generate(**kwargs)
+
+        def generate_with_streaming(**kwargs):
+            return Iteratorize(
+                generate_with_callback, kwargs, callback=None
+            )
+
+        with generate_with_streaming(**generate_params) as generator:
+            for output in generator:
+                # new_tokens = len(output) - len(input_ids[0])
+                decoded_output = tokenizer.decode(output)
+
+                if output[-1] in [tokenizer.eos_token_id]:
+                    break
+                decoded_output = decoded_output.replace("| ", "|\n")
+                decoded_output = decoded_output.replace("instruction", "Humano")
+                decoded_output = decoded_output.replace("completion", "guitarGPT")
+                yield decoded_output          
+        return  # early return for stream_output
+
     with torch.no_grad():
         generation_output = model.generate(
             input_ids=input_ids,
@@ -657,19 +691,15 @@ def interaction(
             repetition_penalty=float(repetition_penalty),
         )
     s = generation_output.sequences[0]
-    output = tokenizer.decode(s)
-    output = output.split("### Response:")[1].strip()
-    output = output.replace("Belle", "Vicuna")
-    if 'User:' in output:
-        output = output.split("User:")[0]
 
+    output = tokenizer.decode(s)
+   
     now_input = now_input.replace("| ", "|\n")
     output = output.replace("| ", "|\n")
     history.append((now_input, output))
-  
+
     return history
 
-blockInput = gr.File("entra.mid", label="midi")  
 with gr.Blocks() as demo:
     gr.HTML("<div align='center'><bold><h1>guitarGPT</h1></bold></div>")
     gr.Markdown("guitarGPT se basa en el modelo [llama-7b-hf](https://huggingface.co/decapoda-research/llama-7b-hf) y su ajuste fino se realizó mediante la herramienta [LLaMA-LoRA-Tuner](https://github.com/zetavg/LLaMA-LoRA-Tuner), aprovechando las ventajas de la técnica LoRA (Low-Rank Adaptation).")
@@ -686,10 +716,19 @@ with gr.Blocks() as demo:
             with gr.Column(scale=10):
                 out = gr.Textbox()
                 with gr.Row():
+                    with gr.Column():            
+                        midiInput = gr.File(os.path.join(os.path.dirname(__file__),"entra.mid"), label="midi")
                     with gr.Column():
-                        midiInput = gr.File("entra.mid", label="midi")
-                    with gr.Column():
-                        playInput = gr.Audio("entra.wav")
+                        playInput = gr.Audio(os.path.join(os.path.dirname(__file__),"entra.wav"))
+                with gr.Row():
+                	with gr.Column():
+                		midi = gr.Video(os.path.join(os.path.dirname(__file__),"funcionamiento.mp4"), label="Funcionamiento general")
+                	with gr.Column():
+                		xml = gr.Video(os.path.join(os.path.dirname(__file__),"verificar.mp4"), label="Verificar si un xml sirve")
+                with gr.Row():
+                	f1 = gr.File(os.path.join(os.path.dirname(__file__), "mozartmenuett.xml"), label="Ejemplo xml 1")
+                	f2 = gr.FIle(os.path.join(os.path.dirname(__file__), "aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
+
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
                 upload_button.upload(getText, upload_button, [out, midiInput, playInput])
@@ -701,20 +740,20 @@ with gr.Blocks() as demo:
         
         with gr.Row():
             with gr.Column(scale=2):
-                chatbot = gr.Chatbot().style(color_map=("green", "pink"))
+            	chatbot = gr.Textbox(interactive=True, lines=15, label="guitarGPT", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |\n*64 32D[4] 32[] | \n*64 4A[3] 4A[4] 4D[5] 4A[4] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] | ")
             
             with gr.Column(scale=1):
-                inp = gr.components.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
-                temp = gr.components.Slider(minimum=0, maximum=2, step=0.01, value=1.0, label="Temperature")
-                topp = gr.components.Slider(minimum=0, maximum=1, step=0.01, value=0.75,  label="Top p")
-                topk = gr.components.Slider(minimum=0, maximum=100, step=0.01, value=40, label="Top k")
-                beams = gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams")
-                tokens = gr.components.Slider(minimum=1, maximum=4096, step=1, value=128, label="Max new tokens")
-                repet = gr.components.Slider(minimum=0.1, maximum=2.5, step=0.01, value=1.2, label="Repetition Penalty")
-                memory = gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory")         
+                inp = gr.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
+                temp = gr.Slider(minimum=0, maximum=2, step=0.01, value=1.0, label="Temperature")
+                topp = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.75,  label="Top p")
+                topk = gr.Slider(minimum=0, maximum=100, step=0.01, value=40, label="Top k")
+                beams = gr.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams")
+                tokens = gr.Slider(minimum=1, maximum=4096, step=1, value=512, label="Max new tokens")
+                repet = gr.Slider(minimum=0.1, maximum=2.5, step=0.01, value=1.2, label="Repetition Penalty")        
+                stream = gr.Checkbox(value=True, label="Stream")
                 btnI = gr.Button("Send")
         
-            btnI.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, memory], outputs=chatbot)
+            btnI.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, stream], outputs=chatbot)
           
     
     with gr.Tab("Get Audio"):
@@ -727,16 +766,16 @@ with gr.Blocks() as demo:
                 out = gr.Textbox(label="Output")
                 with gr.Row():
                     with gr.Column():
-                        midiOutput = gr.File("guitarGPT.mid", label="midi", elem_id='fileInput')
+                        midiOutput = gr.File(os.path.join(os.path.dirname(__file__),"guitarGPT.mid"), label="midi", elem_id='fileInput')
                     with gr.Column():
-                        xmlOutput = gr.File("guitarGPT.xml", label="xml")
+                        xmlOutput = gr.File(os.path.join(os.path.dirname(__file__),"guitarGPT.xml"), label="xml")
                     with gr.Column():
-                        playOutput = gr.Audio("guitarGPT.wav")
+                        playOutput = gr.Audio(os.path.join(os.path.dirname(__file__),"guitarGPT.wav"))
             with gr.Column():
                 inp = gr.Textbox(lines=5, label="Input", placeholder="*48 16D[5] 16K[4] 16I[4] |\n*48 16H[4] 16F[4] 16D[4] |\n*48 16F[4] 16D[4] 16C[3] |\n*48 48D[4] |\n... ")
                 btnO = gr.Button("Send")
         
             btnO.click(getAudio, inp, [out, midiOutput, xmlOutput, playOutput])
 
-demo.launch(share=True, inbrowser=True, debug=False)
+demo.queue().launch(share=True, inbrowser=True, debug=False)
 #demo.launch()
