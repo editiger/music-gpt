@@ -631,17 +631,11 @@ def interaction(
     top_k=40,
     num_beams=4,
     max_new_tokens=128,
-    repetition_penalty=1.0,
-    max_memory=256,
-    **kwargs,
+    repetition_penalty=1.0
 ):
     history = ''
     now_input = input
     history = history or []
-    if len(history) != 0:
-        input = "\n".join(["User:" + i[0]+"\n"+"Assistant:" + i[1] for i in history]) + "\n" + "User:" + input
-        if len(input) > max_memory:
-            input = input[-max_memory:]
     print(input)
     print(len(input))
     prompt = generate_prompt(input)
@@ -651,8 +645,7 @@ def interaction(
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
-        num_beams=num_beams,
-        **kwargs,
+        num_beams=num_beams
     )
     with torch.no_grad():
         generation_output = model.generate(
@@ -664,7 +657,6 @@ def interaction(
             repetition_penalty=float(repetition_penalty),
         )
     s = generation_output.sequences[0]
-    print(s)
     output = tokenizer.decode(s)
     output = output.split("### Response:")[1].strip()
     output = output.replace("Belle", "Vicuna")
@@ -713,12 +705,12 @@ with gr.Blocks() as demo:
             
             with gr.Column(scale=1):
                 inp = gr.components.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
-                temp = gr.components.Slider(minimum=0, maximum=1, value=1.0, label="Temperature")
-                topp = gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p")
-                topk = gr.components.Slider(minimum=0, maximum=100, step=1, value=40, label="Top k")
+                temp = gr.components.Slider(minimum=0, maximum=2, step=0.01, value=1.0, label="Temperature")
+                topp = gr.components.Slider(minimum=0, maximum=1, step=0.01, value=0.75,  label="Top p")
+                topk = gr.components.Slider(minimum=0, maximum=100, step=0.01, value=40, label="Top k")
                 beams = gr.components.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams")
-                tokens = gr.components.Slider(minimum=1, maximum=2000, step=1, value=128, label="Max new tokens")
-                repet = gr.components.Slider(minimum=0.1, maximum=2.5, value=1.2, label="Repetition Penalty")
+                tokens = gr.components.Slider(minimum=1, maximum=4096, step=1, value=128, label="Max new tokens")
+                repet = gr.components.Slider(minimum=0.1, maximum=2.5, step=0.01, value=1.2, label="Repetition Penalty")
                 memory = gr.components.Slider(minimum=0, maximum=256, step=1, value=128, label="max memory")         
                 btnI = gr.Button("Send")
         
