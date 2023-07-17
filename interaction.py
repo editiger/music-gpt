@@ -129,7 +129,7 @@ duration = {
     111:['64.+8…',''],112:['64..','whole'],113:['64..+1',''],114:['64..+2',''],115:['64..+2.',''],116:['64..+4',''],
     117:['64..+4+1',''],118:['64..+4.',''],119:['64..+4..',''],120:['64..+8','']}
 
-#19 trastes
+#25 trastes
 tones = [
     ['E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6','D6#','E6','F6','F6#','G6','G6#','A6','A6#','B6','C7','C7#','D7','D7#','E7'],
     ['B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5','A5#','B5','C6','C6#','D6','D6#','E6','F6','F6#','G6','G6#','A6','A6#','B6'],
@@ -138,7 +138,7 @@ tones = [
     ['A3','A3#','B3','C4','C4#','D4','D4#','E4','F4','F4#','G4','G4#','A4','A4#','B4','C5','C5#','D5','D5#','E5','F5','F5#','G5','G5#','A5'],
     ['D3','D3#','E3','F3','F3#','G3','G3#','A3','A3#','B3','C4','C4#','D4','D4#','E4','F4','F4#','G4','G4#','A4','A4#','B4','C5','C5#','D5']]
 
-tonesJson = [
+tinesGuitarGPT = [
     ['H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6','L6','A6','B6','C6','D7','E7','F7','G7','H7'],
     ['C4','D5','E5','F5','G5','H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6','L6','A6','B6','C6'],
     ['K4','L4','A4','B4','C4','D5','E5','F5','G5','H5','I5','J5','K5','L5','A5','B5','C5','D6','E6','F6','G6','H6','I6','J6','K6'],
@@ -206,8 +206,6 @@ def setSilence(time, xml):
         return xml
     #["32.+4+1", ""], half. + 16th + 64th
     
-
-    
     txt = txt[0].split('+')
     for i in range(0, len(txt)):
         dot = txt[i].split('.')
@@ -238,7 +236,7 @@ def setNote(time, xml, letras, posiciones):
             for i in range(0,6):         #cada cuerda
                 if i not in chords:   #cuerda ya usada
                     try:
-                        fret = tonesJson[i].index(n)
+                        fret = tinesGuitarGPT[i].index(n)
                     except ValueError:
                         fret = -1
                     if fret != -1:
@@ -272,7 +270,7 @@ def setNote(time, xml, letras, posiciones):
                 for i in range(0,6):         #cada cuerda
                     if i not in chords:   #cuerda ya usada
                         try:
-                            fret = tonesJson[i].index(n)
+                            fret = tinesGuitarGPT[i].index(n)
                         except ValueError:
                             fret = -1
                         if fret != -1:
@@ -434,14 +432,14 @@ def getXml(measures):
         contMeasure = contMeasure + 1
     xml = xml + '</part>'
     xml = xml + '</score-partwise>'
-    xmlFile = open('guitarGPT.xml', "w")
+    xmlFile = open('utils/guitarGPT.xml', "w")
     xmlFile.write(xml)
     xmlFile.close()
-    c = music21.converter.parse('guitarGPT.xml')
-    c.write('midi', 'guitarGPT.mid')
-    mid = MidiFile("guitarGPT.mid")
+    c = music21.converter.parse('utils/guitarGPT.xml')
+    c.write('midi', 'utils/guitarGPT.mid')
+    mid = MidiFile("utils/guitarGPT.mid")
     midiToWav()
-    output.export("guitarGPT.wav", format="wav")
+    output.export("utils/guitarGPT.wav", format="wav")
     
 def getChord(notes, i, SIXCHORD, acorde):   
     j = i + 1
@@ -460,7 +458,7 @@ def getChord(notes, i, SIXCHORD, acorde):
                 fret = fret - 12
             while fret < 0:
                 fret = fret + 12
-            acorde[string - 1] = tonesJson[string - 1][fret]
+            acorde[string - 1] = tinesGuitarGPT[string - 1][fret]
             j = j + 1
         else:
             #nota no es parte del acorde, es nueva, retorna a flujo
@@ -477,13 +475,13 @@ def processXml(file):
     name = file.name
     title = name.split('/')[-1]
     c = music21.converter.parse(name)
-    c.write('midi', 'entra.mid')
+    c.write('midi', 'utils/entra.mid')
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
     strings = xml.getElementsByTagName('string')
     if len(strings) == 0:
         errores = "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra.\n"
-        return errores, "entra.mid", "entra.wav"
+        return errores, "utils/entra.mid", "utils/entra.wav"
     n = len(parts)
     resp = title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
@@ -559,7 +557,7 @@ def processXml(file):
                             fret = fret - 12
                         while fret < 0:
                             fret = fret + 12
-                        acorde[string - 1] = tonesJson[string - 1][fret]
+                        acorde[string - 1] = tinesGuitarGPT[string - 1][fret]
                         #si siguientes notas hacen parte de acorde, se añaden
                         i, acorde = getChord(notes, i, SIXCHORD, acorde)
                         a0_ = acorde.copy()
@@ -596,17 +594,17 @@ def processXml(file):
                 resp += txt0
             break
     
-    mid = MidiFile("entra.mid")
+    mid = MidiFile("utils/entra.mid")
     midiToWav()
-    output.export("entra.wav", format="wav")
-    return resp, "entra.mid", "entra.wav"
+    output.export("utils/entra.wav", format="wav")
+    return resp, "utils/entra.mid", "utils/entra.wav"
 
 def getAudio(txt):
     measures, errores = getCompasesOk(txt)
     if len(measures) > 0:
         getXml(measures)
          
-    return errores, "guitarGPT.mid", "guitarGPT.xml", "guitarGPT.wav"
+    return errores, "utils/guitarGPT.mid", "utils/guitarGPT.xml", "utils/guitarGPT.wav"
 
 
 #btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, stream], outputs=chatbot)
@@ -647,11 +645,11 @@ def interaction(
         "output_scores": True,
         "max_new_tokens": max_new_tokens,
         "repetition_penalty":float(repetition_penalty),
-	  }
+      }
 
     if stream:
-		    # Stream the reply 1 token at a time.
-		    # This is based on the trick of using 'stopping_criteria' to create an iterator,
+            # Stream the reply 1 token at a time.
+            # This is based on the trick of using 'stopping_criteria' to create an iterator,
         # from https://github.com/oobabooga/text-generation-webui/blob/ad37f396fc8bcbab90e11ecf17c56c97bfbd4a9c/modules/text_generation.py#L216-L243.
 
         def generate_with_callback(callback=None, **kwargs):
@@ -716,17 +714,17 @@ with gr.Blocks() as demo:
                 out = gr.Textbox()
                 with gr.Row():
                     with gr.Column():            
-                        midiInput = gr.File(os.path.join(os.path.dirname(__file__),"entra.mid"), label="midi")
+                        midiInput = gr.File(os.path.join(os.path.dirname(__file__),"utils/entra.mid"), label="midi")
                     with gr.Column():
-                        playInput = gr.Audio(os.path.join(os.path.dirname(__file__),"entra.wav"))
+                        playInput = gr.Audio(os.path.join(os.path.dirname(__file__),"utils/entra.wav"))
                 with gr.Row():
-                	with gr.Column():
-                		midi = gr.Video(os.path.join(os.path.dirname(__file__),"funcionamiento.mp4"), label="Funcionamiento general")
-                	with gr.Column():
-                		xml = gr.Video(os.path.join(os.path.dirname(__file__),"verificar.mp4"), label="Verificar si un xml sirve")
+                    with gr.Column():
+                        midi = gr.Video(os.path.join(os.path.dirname(__file__),"utils/funcionamiento.mp4"), label="Funcionamiento general")
+                    with gr.Column():
+                        xml = gr.Video(os.path.join(os.path.dirname(__file__),"utils/verificar.mp4"), label="Verificar si un xml sirve")
                 with gr.Row():
-                	f1 = gr.File(os.path.join(os.path.dirname(__file__), "mozartmenuett.xml"), label="Ejemplo xml 1")
-                	f2 = gr.File(os.path.join(os.path.dirname(__file__), "aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
+                    f1 = gr.File(os.path.join(os.path.dirname(__file__), "utils/mozartmenuett.xml"), label="Ejemplo xml 1")
+                    f2 = gr.File(os.path.join(os.path.dirname(__file__), "utils/aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
 
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
@@ -739,7 +737,7 @@ with gr.Blocks() as demo:
         
         with gr.Row():
             with gr.Column(scale=2):
-            	chatbot = gr.Textbox(interactive=True, lines=15, label="guitarGPT", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |\n*64 32D[4] 32[] | \n*64 4A[3] 4A[4] 4D[5] 4A[4] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] | ")
+                chatbot = gr.Textbox(interactive=True, lines=15, label="guitarGPT", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |\n*64 32D[4] 32[] | \n*64 4A[3] 4A[4] 4D[5] 4A[4] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] 4H[5] 4D[5] 4A[4] 4D[5] | ")
             
             with gr.Column(scale=1):
                 inp = gr.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
@@ -765,11 +763,11 @@ with gr.Blocks() as demo:
                 out = gr.Textbox(label="Output")
                 with gr.Row():
                     with gr.Column():
-                        midiOutput = gr.File(os.path.join(os.path.dirname(__file__),"guitarGPT.mid"), label="midi", elem_id='fileInput')
+                        midiOutput = gr.File(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"), label="midi", elem_id='fileInput')
                     with gr.Column():
-                        xmlOutput = gr.File(os.path.join(os.path.dirname(__file__),"guitarGPT.xml"), label="xml")
+                        xmlOutput = gr.File(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), label="xml")
                     with gr.Column():
-                        playOutput = gr.Audio(os.path.join(os.path.dirname(__file__),"guitarGPT.wav"))
+                        playOutput = gr.Audio(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav"))
             with gr.Column():
                 inp = gr.Textbox(lines=5, label="Input", placeholder="*48 16D[5] 16K[4] 16I[4] |\n*48 16H[4] 16F[4] 16D[4] |\n*48 16F[4] 16D[4] 16C[3] |\n*48 48D[4] |\n... ")
                 btnO = gr.Button("Send")
