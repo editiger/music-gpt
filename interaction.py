@@ -150,7 +150,7 @@ tinesGuitarGPT = [
 fraction=[[4,'1/16'], [6,'3/32'], [8,'1/8'], [16,'1/4'],[24,'3/8'],[32,'2/4'],[40,'3/2'],[48,'3/4'],[56,'5/2'],[64,'4/4'],[72,'7/2'],[80,'5/4'],[88,'9/2'],[96,'6/4'],[104,'11/2'],[112,'7/4'],[128,'8/4'],[144,'9/4'],[160,'10/4'],[176,'11/4'],[192,'12/4']
 ]
 
-tempo = 100 # bpm
+tempo = 120 # bpm
 mid = None
 output = None
 
@@ -432,14 +432,14 @@ def getXml(measures):
         contMeasure = contMeasure + 1
     xml = xml + '</part>'
     xml = xml + '</score-partwise>'
-    xmlFile = open('utils/guitarGPT.xml', "w")
+    xmlFile = open(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), "w")
     xmlFile.write(xml)
     xmlFile.close()
-    c = music21.converter.parse('utils/guitarGPT.xml')
-    c.write('midi', 'utils/guitarGPT.mid')
-    mid = MidiFile("utils/guitarGPT.mid")
+    c = music21.converter.parse(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"))
+    c.write('midi', os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"))
+    mid = MidiFile(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"))
     midiToWav()
-    output.export("utils/guitarGPT.wav", format="wav")
+    output.export(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav"), format="wav")
     
 def getChord(notes, i, SIXCHORD, acorde):   
     j = i + 1
@@ -475,13 +475,13 @@ def processXml(file):
     name = file.name
     title = name.split('/')[-1]
     c = music21.converter.parse(name)
-    c.write('midi', 'utils/entra.mid')
+    c.write('midi', os.path.join(os.path.dirname(__file__),"utils/entra.mid"))
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
     strings = xml.getElementsByTagName('string')
     if len(strings) == 0:
         errores = "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra.\n"
-        return errores, "utils/entra.mid", "utils/entra.wav"
+        return errores, os.path.join(os.path.dirname(__file__),"utils/entra.mid"), os.path.join(os.path.dirname(__file__),"utils/entra.wav")
     n = len(parts)
     resp = title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
@@ -594,17 +594,17 @@ def processXml(file):
                 resp += txt0
             break
     
-    mid = MidiFile("utils/entra.mid")
+    mid = MidiFile(os.path.join(os.path.dirname(__file__),"utils/entra.mid"))
     midiToWav()
-    output.export("utils/entra.wav", format="wav")
-    return resp, "utils/entra.mid", "utils/entra.wav"
+    output.export(os.path.join(os.path.dirname(__file__),"utils/entra.wav"), format="wav")
+    return resp, os.path.join(os.path.dirname(__file__),"utils/entra.mid"), os.path.join(os.path.dirname(__file__),"utils/entra.wav")
 
 def getAudio(txt):
     measures, errores = getCompasesOk(txt)
     if len(measures) > 0:
         getXml(measures)
          
-    return errores, "utils/guitarGPT.mid", "utils/guitarGPT.xml", "utils/guitarGPT.wav"
+    return errores, os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"), os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav")
 
 
 #btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, stream], outputs=chatbot)
@@ -719,9 +719,9 @@ with gr.Blocks() as demo:
                         playInput = gr.Audio(os.path.join(os.path.dirname(__file__),"utils/entra.wav"))
                 with gr.Row():
                     with gr.Column():
-                        midi = gr.Video(os.path.join(os.path.dirname(__file__),"utils/funcionamiento.mp4"), label="Funcionamiento general")
+                        midi = gr.Video(os.path.join(os.path.dirname(__file__),"utils/tuxGuitar.avi"), label="Obtener archivo musicXML con Tux Guitar")
                     with gr.Column():
-                        xml = gr.Video(os.path.join(os.path.dirname(__file__),"utils/verificar.mp4"), label="Verificar si un xml sirve")
+                        xml = gr.Video(os.path.join(os.path.dirname(__file__),"utils/funcionamiento.avi"), label="Proceso general")
                 with gr.Row():
                     f1 = gr.File(os.path.join(os.path.dirname(__file__), "utils/mozartmenuett.xml"), label="Ejemplo xml 1")
                     f2 = gr.File(os.path.join(os.path.dirname(__file__), "utils/aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
@@ -741,12 +741,12 @@ with gr.Blocks() as demo:
             
             with gr.Column(scale=1):
                 inp = gr.Textbox(lines=2, label="Input", placeholder="*64 8H[4] 8K[4] 8F[5] 8H[4] 8F[5] 8H[5] 8F[5] 8K[4] |")
-                temp = gr.Slider(minimum=0, maximum=2, step=0.01, value=1.0, label="Temperature")
-                topp = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.75,  label="Top p")
-                topk = gr.Slider(minimum=0, maximum=100, step=0.01, value=40, label="Top k")
-                beams = gr.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams")
-                tokens = gr.Slider(minimum=1, maximum=4096, step=1, value=512, label="Max new tokens")
-                repet = gr.Slider(minimum=0.1, maximum=2.5, step=0.01, value=1.2, label="Repetition Penalty")        
+                temp = gr.Slider(minimum=0, maximum=2, step=0.01, value=1.0, label="Temperature", info="Controla la aleatoriedad: los valores más altos hace que el modelo genere salidas más diversas y aleatorias. A medida que la temperatura se acerca a cero, el modelo se volverá más determinista y repetitivo.")
+                topp = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.75,  label="Top p", info="Controla la diversidad a través del muestreo del núcleo: solo se consideran los tokens cuya probabilidad acumulada excede a 'top_p'. 0.5 significa que se consideran la mitad de todas las opciones ponderadas por probabilidad. Solo surtirá efecto si la temperatura se establece en > 0")
+                topk = gr.Slider(minimum=0, maximum=100, step=0.01, value=40, label="Top k", info="Controla la diversidad de texto generado considerando solo los 'top_k' tokens con las probabilidades más altas. Este método puede generar resultados más centrados y coherentes al reducir el impacto de los tokens de baja probabilidad. Solo tendrá efecto si la temperatura se establece en > 0.")
+                beams = gr.Slider(minimum=1, maximum=5, step=1, value=2, label="Beams", info="Número de secuencias candidatas exploradas en paralelo durante la generación de texto mediante la búsqueda por haz. Un valor más alto aumenta las posibilidades de encontrar resultados coherentes y de alta calidad, pero puede ralentizar el proceso de generación.")
+                tokens = gr.Slider(minimum=1, maximum=4096, step=1, value=512, label="Max new tokens", info="Limita la cantidad máxima de tokens generados en una sola iteración.")
+                repet = gr.Slider(minimum=0.1, maximum=2.5, step=0.01, value=1.2, label="Repetition Penalty", info="Aplica una penalización a la probabilidad de tokens que ya se han generado, desalentando al modelo a repetir las mismas palabras o frases. La penalización se aplica dividiendo la probabilidad del token por un factor basado en el número de veces que ha aparecido el token en el texto generado.")        
                 stream = gr.Checkbox(value=True, label="Stream")
                 btnI = gr.Button("Send")
         
