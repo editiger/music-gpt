@@ -622,10 +622,10 @@ def interaction(
     torch.cuda.empty_cache()
 
     history = ''
-    now_input = input
+    now_input = input.replace("\n", " ")
     history = history or []
 
-    prompt = generate_prompt(input)
+    prompt = generate_prompt(now_input)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     input_ids = inputs["input_ids"].to(device)
