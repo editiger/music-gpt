@@ -432,14 +432,21 @@ def getXml(measures):
         contMeasure = contMeasure + 1
     xml = xml + '</part>'
     xml = xml + '</score-partwise>'
-    xmlFile = open(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), "w")
+    xmlFile = open("/content/guitarGPT/utils/guitarGPT.xml", "w")
     xmlFile.write(xml)
     xmlFile.close()
-    c = music21.converter.parse(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"))
-    c.write('midi', os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"))
-    mid = MidiFile(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"))
-    midiToWav()
-    output.export(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav"), format="wav")
+    try:
+        c = music21.converter.parse("/content/guitarGPT/utils/guitarGPT.xml")
+        c.write('midi', "/content/guitarGPT/utils/guitarGPT.mid")
+        mid = MidiFile("/content/guitarGPT/utils/guitarGPT.mid")
+        midiToWav()
+        output.export("/content/guitarGPT/utils/guitarGPT.wav", format="wav")
+    except OSError as err:
+        print("OS error:", err)
+    except ValueError:
+        print("Could not convert data to an integer.")
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
     
 def getChord(notes, i, SIXCHORD, acorde):   
     j = i + 1
@@ -474,16 +481,27 @@ def processXml(file):
     global mid
     name = file.name
     title = name.split('/')[-1]
-    c = music21.converter.parse(name)
-    c.write('midi', os.path.join(os.path.dirname(__file__),"utils/entra.mid"))
+    resp = ''
+    try:
+        c = music21.converter.parse(name)
+        c.write('midi', "/content/guitarGPT/utils/entra.mid")
+    except OSError as err:
+        print("OS error:", err)
+        resp += "OS error: " + err + '\n\n'
+    except ValueError:
+        print("Could not convert data to an integer.")
+        resp += "Could not convert data to an integer.\n\n"
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        resp += "Unexpected err= " + err + " type " + type(err) + ".\n\n"
     xml = minidom.parse(name)
     parts = xml.getElementsByTagName('part')
     strings = xml.getElementsByTagName('string')
     if len(strings) == 0:
         errores = "Archivo xml no válido. Debe ingresar un archivo musicxml para guitarra.\n"
-        return errores, os.path.join(os.path.dirname(__file__),"utils/entra.mid"), os.path.join(os.path.dirname(__file__),"utils/entra.wav")
+        return errores, "/content/guitarGPT/utils/entra.mid", "/content/guitarGPT/utils/entra.wav"
     n = len(parts)
-    resp = title + '\n\n'
+    resp += title + '\n\n'
     resp += 'El archivo tiene ' + str(n) + ' pista(s).'
     if n > 1:
         resp += ' Únicamente se procesará la primer pista.'
@@ -594,17 +612,17 @@ def processXml(file):
                 resp += txt0
             break
     
-    mid = MidiFile(os.path.join(os.path.dirname(__file__),"utils/entra.mid"))
+    mid = MidiFile("/content/guitarGPT/utils/entra.mid")
     midiToWav()
-    output.export(os.path.join(os.path.dirname(__file__),"utils/entra.wav"), format="wav")
-    return resp, os.path.join(os.path.dirname(__file__),"utils/entra.mid"), os.path.join(os.path.dirname(__file__),"utils/entra.wav")
+    output.export("/content/guitarGPT/utils/entra.wav", format="wav")
+    return resp, "/content/guitarGPT/utils/entra.mid", "/content/guitarGPT/utils/entra.wav"
 
 def getAudio(txt):
     measures, errores = getCompasesOk(txt)
     if len(measures) > 0:
         getXml(measures)
          
-    return errores, os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"), os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav")
+    return errores, "/content/guitarGPT/utils/guitarGPT.mid", "/content/guitarGPT/utils/guitarGPT.xml", "/content/guitarGPT/utils/guitarGPT.wav"
 
 
 #btn.click(interaction, inputs=[inp, temp, topp, topk, beams, tokens, repet, stream], outputs=chatbot)
@@ -714,17 +732,17 @@ with gr.Blocks() as demo:
                 out = gr.Textbox()
                 with gr.Row():
                     with gr.Column():            
-                        midiInput = gr.File(os.path.join(os.path.dirname(__file__),"utils/entra.mid"), label="midi")
+                        midiInput = gr.File("/content/guitarGPT/utils/entra.mid", label="midi")
                     with gr.Column():
-                        playInput = gr.Audio(os.path.join(os.path.dirname(__file__),"utils/entra.wav"))
+                        playInput = gr.Audio("/content/guitarGPT/utils/entra.wav")
                 with gr.Row():
                     with gr.Column():
-                        midi = gr.Video(os.path.join(os.path.dirname(__file__),"utils/tuxGuitar.avi"), label="Obtener archivo musicXML con Tux Guitar")
+                        midi = gr.Video("/content/guitarGPT/utils/tuxGuitar.avi", label="Obtener archivo musicXML con Tux Guitar")
                     with gr.Column():
-                        xml = gr.Video(os.path.join(os.path.dirname(__file__),"utils/funcionamiento.avi"), label="Proceso general")
+                        xml = gr.Video("/content/guitarGPT/utils/funcionamiento.avi", label="Proceso general")
                 with gr.Row():
-                    f1 = gr.File(os.path.join(os.path.dirname(__file__), "utils/mozartmenuett.xml"), label="Ejemplo xml 1")
-                    f2 = gr.File(os.path.join(os.path.dirname(__file__), "utils/aguadoop6leccionno30.xml"), label="Ejemplo xml 2")
+                    f1 = gr.File("/content/guitarGPT/utils/mozartmenuett.xml", label="Ejemplo xml 1")
+                    f2 = gr.File("/content/guitarGPT/utils/aguadoop6leccionno30.xml", label="Ejemplo xml 2")
 
             with gr.Column(scale=1):
                 upload_button = gr.UploadButton("Click to Upload a File", file_types=[".xml"], file_count="single")
@@ -763,11 +781,11 @@ with gr.Blocks() as demo:
                 out = gr.Textbox(label="Output")
                 with gr.Row():
                     with gr.Column():
-                        midiOutput = gr.File(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.mid"), label="midi", elem_id='fileInput')
+                        midiOutput = gr.File("/content/guitarGPT/utils/guitarGPT.mid", label="midi", elem_id='fileInput')
                     with gr.Column():
-                        xmlOutput = gr.File(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.xml"), label="xml")
+                        xmlOutput = gr.File("/content/guitarGPT/utils/guitarGPT.xml", label="xml")
                     with gr.Column():
-                        playOutput = gr.Audio(os.path.join(os.path.dirname(__file__),"utils/guitarGPT.wav"))
+                        playOutput = gr.Audio("/content/guitarGPT/utils/guitarGPT.wav")
             with gr.Column():
                 inp = gr.Textbox(lines=5, label="Input", placeholder="*48 16D[5] 16K[4] 16I[4] |\n*48 16H[4] 16F[4] 16D[4] |\n*48 16F[4] 16D[4] 16C[3] |\n*48 48D[4] |\n... ")
                 btnO = gr.Button("Send")
